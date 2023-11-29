@@ -53,19 +53,21 @@ class KDQuantizer(nn.Module):
 
     # Create centroids for keys and values.
     D_to_create = 1 if shared_centroids else D
+    #TODO check initilizing parameters compatiblity with tf
     centroids_k = torch.randn([D_to_create, K, d_in])
     if tie_in_n_out:
       centroids_v = centroids_k
     else:
-      centroids_v = torch.randn([D_to_create, K, d_out])
+      centroids_v =  torch.randn([D_to_create, K, d_out])
     if shared_centroids:
       centroids_k = torch.tile(centroids_k, [D, 1, 1])
       if tie_in_n_out:
         centroids_v = centroids_k
       else:
         centroids_v = torch.tile(centroids_v, [D, 1, 1])
-    self._centroids_k = centroids_k
-    self._centroids_v = centroids_v
+    self._centroids_k = nn.Parameter(centroids_k)
+    self._centroids_v = nn.Parameter(centroids_v)
+    self.batch_norm = nn.BatchNorm1d(self._D, affine=False)
 
   def forward(self,
               inputs,
@@ -110,9 +112,8 @@ class KDQuantizer(nn.Module):
       #    response, scale=False, center=False,
       #    trainable=False, data_format="NCHW")
 
-      #TODO number of featchers? in BatchNorm1d
-      response = torch.nn.BatchNorm1d(response.shape[-2], affine=False)(response)
-      #TODO check the training parameter
+      response = self.batch_norm(response)
+      #TODO check compatability 
       ###TODO response = tf.layers.batch_normalization(response, scale=False, center=False, training=is_training)
 
       # Layer norm as alternative to BN.
@@ -153,7 +154,7 @@ class KDQuantizer(nn.Module):
     # Add regularization for updating centroids / stabilization.
     #TODO is_training?
     if is_training:
-      print("[INFO] Adding KDQ regularization.")
+      #print("[INFO] Adding KDQ regularization.")
       if self._tie_in_n_out:
         alpha = 1.
         beta = self._beta

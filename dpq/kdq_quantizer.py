@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from kd_quantizer import KDQuantizer
+from .kd_quantizer import KDQuantizer
 
 
-class KDQhparam(nn.Module):
+class DPQ(nn.Module):
   # A default KDQ parameter setting (demo)
   def __init__(self,
                vocab_size=100,
@@ -28,8 +28,9 @@ class KDQhparam(nn.Module):
     d_out = d if additive_quantization else d//D
     out_size = [D, emb_size] if additive_quantization else [emb_size]
 
-    self.query_wemb = torch.randn([vocab_size, D * d_in], dtype=torch.float32)
+    self.query_wemb = nn.Parameter(torch.randn([vocab_size, D * d_in], dtype=torch.float32))
 
+    self.kdq_d_in = kdq_d_in
     if kdq_type == "vq":
         assert self.kdq_d_in <= 0, (
             "kdq d_in cannot be changed (to %d) for vq" % self.kdq_d_in)
@@ -54,7 +55,6 @@ class KDQhparam(nn.Module):
     self.K = K
     self.D = D
     self.kdq_type = kdq_type
-    self.kdq_d_in = kdq_d_in
     self.kdq_share_subspace = kdq_share_subspace
     self.additive_quantization = additive_quantization
     
@@ -77,20 +77,20 @@ class KDQhparam(nn.Module):
         dist_metric = "dot"
         beta, tau, softmax_BN = 0.0, 1.0, True
         share_subspace = self.kdq_share_subspace
-    _, input_emb, losses = self.kdq(torch.reshape(input_emb, [-1, self.D, self.d_in]),
+    codes, input_emb, losses = self.kdq(torch.reshape(input_emb, [-1, self.D, self.d_in]),
                                is_training=training)
     final_size = list(input.shape) + list(self.out_size)
     input_emb = torch.reshape(input_emb, final_size)
     if self.additive_quantization:
       input_emb = torch.mean(input_emb, -2)
-    return input_emb, losses
+    return input_emb, codes, losses
 
 
 class FullEmbed(nn.Module):
   def __init__(self, vocab_size, emb_size,
                       name="full_emb"):
     super().__init__()
-    self.embedding = torch.randn([vocab_size, emb_size])
+    self.embedding = nn.Parameter(torch.randn([vocab_size, emb_size]))
 
   def full_embed(self, input, training=True):
     """Full embedding baseline.
@@ -111,6 +111,6 @@ class FullEmbed(nn.Module):
 if __name__=="__main__":
      
   x = torch.randint(3,(4,4,4))
-  m = KDQhparam()
+  m = DPQ()
   y = m(x)
   print(y)
