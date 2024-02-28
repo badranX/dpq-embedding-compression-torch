@@ -59,7 +59,7 @@ class DPQ(nn.Module):
     self.additive_quantization = additive_quantization
     
     
-  def forward(self, input, training=True):
+  def forward(self, input, is_training=True):
     idxs = torch.reshape(input, [-1])
     input_emb = self.query_wemb[idxs]
 
@@ -78,7 +78,7 @@ class DPQ(nn.Module):
         beta, tau, softmax_BN = 0.0, 1.0, True
         share_subspace = self.kdq_share_subspace
     codes, input_emb, losses = self.kdq(torch.reshape(input_emb, [-1, self.D, self.d_in]),
-                               is_training=training)
+                               is_training=is_training)
     final_size = list(input.shape) + list(self.out_size)
     input_emb = torch.reshape(input_emb, final_size)
     if self.additive_quantization:

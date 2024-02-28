@@ -176,6 +176,8 @@ class KDQuantizer(nn.Module):
         
       losses = {"regulization_loss": reg}
       #tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, reg)
+    else:
+      losses = None
 
     return codes, outputs_final, losses
 
